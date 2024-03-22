@@ -42,11 +42,11 @@ async def rrf(request: schemas.RRFQuerySchema):
     vector_penalty = 3
     full_text_penalty = 1
     
-    key=query+'@rrf'
-    value = r.get(key)
-    print(value)
-    if value:
-        return json.loads(value)
+    # key=query+'@rrf'
+    # value = r.get(key)
+    # print(value)
+    # if value:
+    #     return json.loads(value)
     
     query_embedding = get_embedding_ada([query])
     query_embedding = query_embedding[0].tolist()[0]
@@ -89,7 +89,7 @@ async def rrf(request: schemas.RRFQuerySchema):
         },
         {
             "$unionWith": {
-                "coll": "embedded_movies",
+                "coll": "movies",
                 "pipeline": [
                     {
                         "$search": {
@@ -140,56 +140,56 @@ async def rrf(request: schemas.RRFQuerySchema):
                 ]
             }
         },
-        {
-            "$unionWith": {
-                "coll": "embedded_movies",
-                "pipeline": [
-                    {
-                        "$search": {
-                            "index": "movie_index",
-                            "phrase": {
-                            "query": query,
-                            "path": {
-                                "wildcard":"*"
-                            }
-                            }
-                    }
-                    }, 
-                    {
-                        "$limit": 15
-                    }, 
-                    {
-                        "$group": {
-                            "_id": None,
-                            "docs": {"$push": "$$ROOT"}
-                        }
-                    }, 
-                    {
-                        "$unwind": {
-                            "path": "$docs", 
-                            "includeArrayIndex": "rank"
-                        }
-                    }, 
-                    {
-                        "$addFields": {
-                            "fts_score": {
-                                "$divide": [
-                                    1.0,
-                                    {"$add": ["$rank", full_text_penalty, 1]}
-                                ]
-                            }
-                        }
-                    },
-                    {
-                        "$project": {
-                            "fts_score": 1,
-                            "_id": "$docs._id",
-                            "title": "$docs.title"
-                        }
-                    }
-                ]
-            }
-        },
+        # {
+        #     "$unionWith": {
+        #         "coll": "embedded_movies",
+        #         "pipeline": [
+        #             {
+        #                 "$search": {
+        #                     "index": "movie_index",
+        #                     "phrase": {
+        #                     "query": query,
+        #                     "path": {
+        #                         "wildcard":"*"
+        #                     }
+        #                     }
+        #             }
+        #             }, 
+        #             {
+        #                 "$limit": 15
+        #             }, 
+        #             {
+        #                 "$group": {
+        #                     "_id": None,
+        #                     "docs": {"$push": "$$ROOT"}
+        #                 }
+        #             }, 
+        #             {
+        #                 "$unwind": {
+        #                     "path": "$docs", 
+        #                     "includeArrayIndex": "rank"
+        #                 }
+        #             }, 
+        #             {
+        #                 "$addFields": {
+        #                     "fts_score": {
+        #                         "$divide": [
+        #                             1.0,
+        #                             {"$add": ["$rank", full_text_penalty, 1]}
+        #                         ]
+        #                     }
+        #                 }
+        #             },
+        #             {
+        #                 "$project": {
+        #                     "fts_score": 1,
+        #                     "_id": "$docs._id",
+        #                     "title": "$docs.title"
+        #                 }
+        #             }
+        #         ]
+        #     }
+        # },
         {
             "$group": {
                 "_id": "$title",
@@ -227,7 +227,7 @@ async def rrf(request: schemas.RRFQuerySchema):
             "vs_score": result['vs_score'],
             "fts_score": result['fts_score']
         })
-    r.set(key,json.dumps(response))
+    # r.set(key,json.dumps(response))
     return response
 
 
