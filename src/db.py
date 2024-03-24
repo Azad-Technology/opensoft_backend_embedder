@@ -7,8 +7,6 @@ client = AsyncIOMotorClient(config['DATABASE_URL'])
 db = client[config['MONGO_INITDB_DATABASE']]
 print('Connected to MongoDB')
 
-with open('countries.json', 'r') as file:
-    countries_dict=json.load(file)
 
 db = client.get_database(config['MONGO_INITDB_DATABASE'])
 

@@ -10,7 +10,10 @@ from src.utils.ada_embedder import embed_movie as embed_movie_ada, get_embedding
 from src.db import Movies, Embedded_movies
 from src.cache_system import r
 
-
+vs_penalty=1
+fts_penalty=1
+vs_const=1
+fts_const=1
 
 @router.get("/init_embeddings")
 async def init_embeddings():
@@ -48,7 +51,7 @@ async def fts_search(request: schemas.FTSQuerySchema):
             'text': {
                 'query': query,
                 'path': arg,
-                'fuzzy':{},
+                'fuzzy':{'prefixLength':1,'maxExpansions':70},
                 'score': {
                     'boost': {
                     'value': 5
@@ -73,7 +76,7 @@ async def fts_search(request: schemas.FTSQuerySchema):
                     "text": {
                         "query": query, 
                         "path": 'title',
-                        "fuzzy":{},
+                        "fuzzy":{'prefixLength':1,'maxExpansions':70},
                         "score":{
                         "boost":{
                             "value":5
@@ -84,7 +87,7 @@ async def fts_search(request: schemas.FTSQuerySchema):
                             "text": {
                                 "query": query, 
                                 "path": 'genres',
-                                "fuzzy":{},
+                                "fuzzy":{'prefixLength':1,},
                                 "score":{
                                 "boost":{
                                     "value":3
@@ -95,7 +98,7 @@ async def fts_search(request: schemas.FTSQuerySchema):
                             "text": {
                                 "query": query, 
                                 "path": 'cast',
-                                "fuzzy":{},
+                                "fuzzy":{'prefixLength':1,},
                                 "score":{
                                 "boost":{
                                     "value":2
@@ -106,7 +109,6 @@ async def fts_search(request: schemas.FTSQuerySchema):
                             "text": {
                                 "query": query, 
                                 "path": 'directors',
-                                "fuzzy":{},
                                 "score":{
                                 "boost":{
                                     "value":1
@@ -133,11 +135,10 @@ async def fts_search(request: schemas.FTSQuerySchema):
         finalPipeline=pipeline
     results = await Movies.aggregate(finalPipeline).to_list(100)
     # print(results)
-    maxScore=results[0]['score']
-    for result in results:
-        result["_id"] = str(result["_id"])
-        result["title"] = str(result["title"])
-        result['score']/=maxScore
+    for i in range(len(results)):
+        results[i]["_id"] = str(results[i]["_id"])
+        results[i]["title"] = str(results[i]["title"])
+        results[i]['score']=1/(i+fts_const+fts_penalty)
     # r.set(key,json.dumps(response))
     return results
 
@@ -154,7 +155,6 @@ async def sem_search(request: schemas.RRFQuerySchema):
     # print(value)
     # if value:
     #     return json.loads(value)
-    vector_penalty = 3
     pipeline = [
     {
         '$vectorSearch': {
@@ -195,10 +195,11 @@ async def sem_search(request: schemas.RRFQuerySchema):
     }
     ]
 
-    results = await Embedded_movies.aggregate(pipeline).to_list(10)
-    for result in results:
-        result["_id"] = str(result["_id"])
-        result["title"] = str(result["title"])
+    results = await Embedded_movies.aggregate(pipeline).to_list(100)
+    for i in range(len(results)):
+        results[i]["_id"] = str(results[i]["_id"])
+        results[i]["title"] = str(results[i]["title"])
+        results[i]['score']=1/(i+vs_const+vs_penalty)
     # r.set(key,json.dumps(response))
     return results
 
@@ -219,9 +220,12 @@ async def rrf(request: schemas.FTSQuerySchema):
     }
     # print(payload,"  hello Harsh  ",payload2)
     # print("Towards Output!")
+    resultVs=[]
+    resultFts=[]
     resultVs = await sem_search(schemas.RRFQuerySchema(query=query))
     # print(resultVs)
-    resultFts=await fts_search(schemas.FTSQuerySchema(query=query,arg=arg))
+    if len(query) < 50:
+        resultFts=await fts_search(schemas.FTSQuerySchema(query=query,arg=arg))
     # print(resultFts)
     response = []
     
