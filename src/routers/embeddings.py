@@ -7,7 +7,7 @@ from src.config import config
 router = APIRouter()
 from bson.objectid import ObjectId
 from src.utils.ada_embedder import embed_movie as embed_movie_ada, get_embedding as get_embedding_ada
-from src.db import Movies, Embedded_movies
+from src.db import Movies, Embedded_movies,db
 from src.cache_system import r
 
 vs_penalty=1
@@ -44,10 +44,10 @@ def get_score(element):
 async def fts_search(request: schemas.FTSQuerySchema):
     query = request.query
     arg=request.arg
-    key=query+"_"+arg+'@ftssearch'
-    value = r.get(key)
-    if value:
-        return json.loads(value)
+    # key=query+"_"+arg+'@ftssearch'
+    # value = r.get(key)
+    # if value:
+    #     return json.loads(value)
         
     pipeline=[
         {
@@ -138,13 +138,13 @@ async def fts_search(request: schemas.FTSQuerySchema):
         finalPipeline=pipeline2
     else:
         finalPipeline=pipeline
-    results = await Movies.aggregate(finalPipeline).to_list(100)
-    # print(results)
+    results =await Movies.aggregate(finalPipeline).to_list(100)
+    print(results)
     for i in range(len(results)):
         results[i]["_id"] = str(results[i]["_id"])
         results[i]["title"] = str(results[i]["title"])
         results[i]['score']=1/(i+fts_const+fts_penalty)
-    r.set(key,json.dumps(results))
+    # r.set(key,json.dumps(results))
     return results
 
 @router.post("/sem_search")
@@ -153,12 +153,12 @@ async def sem_search(request: schemas.RRFQuerySchema):
     query_vector = get_embedding_ada([query])  
     query_vector = query_vector[0].tolist()[0]
     query_vector_bson = [float(value) for value in query_vector]
-    print(query,query_vector_bson)
-    key=query+'@sem'
-    value = r.get(key)
-    print(value)
-    if value:
-        return json.loads(value)
+    # print(query,query_vector_bson)
+    # key=query+'@sem'
+    # value = r.get(key)
+    # print(value)
+    # if value:
+    #     return json.loads(value)
     pipeline = [
     {
         '$vectorSearch': {
@@ -185,7 +185,7 @@ async def sem_search(request: schemas.RRFQuerySchema):
         results[i]["_id"] = str(results[i]["_id"])
         results[i]["title"] = str(results[i]["title"])
         results[i]['score']=1/(i+vs_const+vs_penalty)
-    r.set(key,json.dumps(results))
+    # r.set(key,json.dumps(results))
     return results
 
 
@@ -194,10 +194,10 @@ async def rrf(request: schemas.FTSQuerySchema):
     query = request
     query = query.query
     arg=request.arg
-    key=query+"_"+arg+'@rrf'
-    value = r.get(key)
-    if value:
-        return json.loads(value)
+    # key=query+"_"+arg+'@rrf'
+    # value = r.get(key)
+    # if value:
+    #     return json.loads(value)
     
     payload={
         "query":query
@@ -227,10 +227,13 @@ async def rrf(request: schemas.FTSQuerySchema):
                 checker['score'] += result['score']
                 result['_id']=""
         if result['_id'] != "":
+            db_movie=await Movies.find_one({'_id':ObjectId(_id)})
+            if db_movie and ('poster_path' in db_movie) and db_movie['poster_path']:
+                result['poster_path']=db_movie['poster_path']
             response.append(result)    
             
     response.sort(reverse=True,key=get_score)  
-    r.set(key,json.dumps(response)) 
+    # r.set(key,json.dumps(response)) 
     return response
 
 
