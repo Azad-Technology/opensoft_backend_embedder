@@ -44,10 +44,10 @@ def get_score(element):
 async def fts_search(request: schemas.FTSQuerySchema):
     query = request.query
     arg=request.arg
-    # key=query+"_"+arg+'@ftssearch'
-    # value = r.get(key)
-    # if value:
-    #     return json.loads(value)
+    key=query+"_"+arg+'@ftssearch'
+    value = r.get(key)
+    if value:
+        return json.loads(value)
         
     pipeline=[
         {
@@ -144,7 +144,7 @@ async def fts_search(request: schemas.FTSQuerySchema):
         results[i]["_id"] = str(results[i]["_id"])
         results[i]["title"] = str(results[i]["title"])
         results[i]['score']=1/(i+fts_const+fts_penalty)
-    # r.set(key,json.dumps(results))
+    r.set(key,json.dumps(results))
     return results
 
 @router.post("/sem_search")
@@ -154,11 +154,11 @@ async def sem_search(request: schemas.RRFQuerySchema):
     query_vector = query_vector[0].tolist()[0]
     query_vector_bson = [float(value) for value in query_vector]
     # print(query,query_vector_bson)
-    # key=query+'@sem'
-    # value = r.get(key)
-    # print(value)
-    # if value:
-    #     return json.loads(value)
+    key=query+'@sem'
+    value = r.get(key)
+    print(value)
+    if value:
+        return json.loads(value)
     pipeline = [
     {
         '$vectorSearch': {
@@ -185,7 +185,7 @@ async def sem_search(request: schemas.RRFQuerySchema):
         results[i]["_id"] = str(results[i]["_id"])
         results[i]["title"] = str(results[i]["title"])
         results[i]['score']=1/(i+vs_const+vs_penalty)
-    # r.set(key,json.dumps(results))
+    r.set(key,json.dumps(results))
     return results
 
 
@@ -194,10 +194,10 @@ async def rrf(request: schemas.FTSQuerySchema):
     query = request
     query = query.query
     arg=request.arg
-    # key=query+"_"+arg+'@rrf'
-    # value = r.get(key)
-    # if value:
-    #     return json.loads(value)
+    key=query+"_"+arg+'@rrf'
+    value = r.get(key)
+    if value:
+        return json.loads(value)
     
     payload={
         "query":query
@@ -233,7 +233,7 @@ async def rrf(request: schemas.FTSQuerySchema):
             response.append(result)    
             
     response.sort(reverse=True,key=get_score)  
-    # r.set(key,json.dumps(response)) 
+    r.set(key,json.dumps(response)) 
     return response
 
 
