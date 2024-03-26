@@ -203,11 +203,11 @@ async def rrf(request: schemas.RRFQuerySchema):
 @router.post('/fts_search_filter')
 async def fts_search_filter(request: schemas.FilterSchema):
     query=request.query
-    genre=request.genre
+    genres=request.genre
     year=request.year
     language=request.language
     
-    key=query+'_'+(genre or 'genre_None')+'_'+(str(year) or 'year_None')+'_'+(language or 'language_None')+'@rrf'
+    key=query+'_'+(str(genres) or 'genre_None')+'_'+(str(year) or 'year_None')+'_'+(language or 'language_None')+'@rrf'
     value = r.get(key)
     if value:
         return json.loads(value)
@@ -264,9 +264,9 @@ async def fts_search_filter(request: schemas.FilterSchema):
         { '$project': { '_id': 1, 'title': 1, 'imdb': 1, 'plot': 1, 'poster_path': 1, 'runtime': 1, 'year': 1,"highlights":{"$meta":"searchHighlights"},"score":{"$meta":"searchScore"} }},
         { '$sort': { 'score': -1,'imdb': -1} }
     ]
-    
-    if genre:
-        pipeline2[0]['$search']['compound']['must'].append({"text": {"query": genre,"path": "genres"}})
+    for genre in genres:
+        if genre:
+            pipeline2[0]['$search']['compound']['must'].append({"text": {"query": genre,"path": "genres"}})
     if year:
         pipeline2[0]['$search']['compound']['must'].append({'range': {'path': 'year', 'gte': year, 'lte': year}})
     if language:
