@@ -44,10 +44,10 @@ def get_score(element):
 @router.post("/fts_search")
 async def fts_search(request: schemas.RRFQuerySchema):
     query = request.query
-    # key=query+"_"+arg+'@ftssearch'
-    # value = r.get(key)
-    # if value:
-    #     return json.loads(value)
+    key=query+'@ftssearch'
+    value = r.get(key)
+    if value:
+        return json.loads(value)
     
     pipeline2=[
         {
@@ -118,7 +118,7 @@ async def fts_search(request: schemas.RRFQuerySchema):
         results[i]["_id"] = str(results[i]["_id"])
         results[i]["title"] = str(results[i]["title"])
         results[i]['score']=1/(i+fts_const+fts_penalty)
-    # r.set(key,json.dumps(results))
+    r.set(key,json.dumps(results))
     return results
 
 @router.post("/sem_search")
@@ -128,11 +128,11 @@ async def sem_search(request: schemas.RRFQuerySchema):
     query_vector = query_vector[0].tolist()[0]
     query_vector_bson = [float(value) for value in query_vector]
     # print(query,query_vector_bson)
-    # key=query+'@sem'
-    # value = r.get(key)
+    key=query+'@sem'
+    value = r.get(key)
     # print(value)
-    # if value:
-    #     return json.loads(value)
+    if value:
+        return json.loads(value)
     pipeline = [
     {
         '$vectorSearch': {
@@ -159,7 +159,7 @@ async def sem_search(request: schemas.RRFQuerySchema):
         results[i]["_id"] = str(results[i]["_id"])
         results[i]["title"] = str(results[i]["title"])
         results[i]['score']=1/(i+vs_const+vs_penalty)
-    # r.set(key,json.dumps(results))
+    r.set(key,json.dumps(results))
     return results
 
 
@@ -167,10 +167,10 @@ async def sem_search(request: schemas.RRFQuerySchema):
 async def rrf(request: schemas.RRFQuerySchema):
     query = request
     query = query.query
-    # key=query+"_"+arg+'@rrf'
-    # value = r.get(key)
-    # if value:
-    #     return json.loads(value)
+    key=query+'@rrf'
+    value = r.get(key)
+    if value:
+        return json.loads(value)
     resultVs=[]
     resultFts=[]
     resultVs = await sem_search(schemas.RRFQuerySchema(query=query))
@@ -196,7 +196,7 @@ async def rrf(request: schemas.RRFQuerySchema):
             response.append(result)    
             
     response.sort(reverse=True,key=lambda elem: "%s %s" % (elem['score'], elem['imdb']['rating']))  
-    # r.set(key,json.dumps(response)) 
+    r.set(key,json.dumps(response)) 
     return response
 
 
@@ -207,6 +207,10 @@ async def fts_search_filter(request: schemas.FilterSchema):
     year=request.year
     language=request.language
     
+    key=query+'_'+(genre or 'genre_None')+'_'+(str(year) or 'year_None')+'_'+(language or 'language_None')+'@rrf'
+    value = r.get(key)
+    if value:
+        return json.loads(value)
     pipeline2=[
         {
         '$search': {
@@ -273,5 +277,5 @@ async def fts_search_filter(request: schemas.FilterSchema):
     for i in range(len(results)):
         results[i]["_id"] = str(results[i]["_id"])
         results[i]["title"] = str(results[i]["title"])
-    # r.set(key,json.dumps(results))
+    r.set(key,json.dumps(results))
     return results
