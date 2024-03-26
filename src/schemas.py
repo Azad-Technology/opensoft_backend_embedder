@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class MovieEmbedSchema(BaseModel):
@@ -9,6 +10,8 @@ class MovieEmbedSchema(BaseModel):
 class RRFQuerySchema(BaseModel):
     query: str
     
-class FTSQuerySchema(BaseModel):
+class FilterSchema(BaseModel):
     query:str
-    arg:str
+    genre:Optional[str]=None
+    year:Optional[int]=None
+    language:Optional[str]=None
