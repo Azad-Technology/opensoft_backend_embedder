@@ -174,8 +174,6 @@ async def rrf(request: schemas.RRFQuerySchema):
     if value:
         print("Cache Hit")
         return json.loads(value)
-    query2=query[0:2]+' '+query
-    print(query)
     resultVs=[]
     resultFts=[]
     resultVs = await sem_search(schemas.RRFQuerySchema(query=query))
@@ -201,9 +199,10 @@ async def rrf(request: schemas.RRFQuerySchema):
             response.append(result)    
             
     response.sort(reverse=True,key=lambda elem: "%s %s" % (elem['score'], elem['imdb']['rating']))  
+    response=response[0:50]
     r.set(key,json.dumps(response)) 
     print(f"Cache Miss: Generated Key {key}")
-    return response
+    return response[0:50]
 
 
 @router.post('/fts_search_filter')
