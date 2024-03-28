@@ -59,7 +59,7 @@ async def fts_search(request: schemas.RRFQuerySchema):
                     "text": {
                         "query": query, 
                         "path": 'title',
-                        "fuzzy":{'prefixLength':1,'maxExpansions':70},
+                        "fuzzy":{'prefixLength':3,'maxExpansions':1000},
                         "score":{
                         "boost":{
                             "value":5
@@ -70,7 +70,7 @@ async def fts_search(request: schemas.RRFQuerySchema):
                             "text": {
                                 "query": query, 
                                 "path": 'genres',
-                                "fuzzy":{'prefixLength':1,},
+                                "fuzzy":{'prefixLength':1},
                                 "score":{
                                 "boost":{
                                     "value":3
@@ -81,7 +81,7 @@ async def fts_search(request: schemas.RRFQuerySchema):
                             "text": {
                                 "query": query, 
                                 "path": 'cast',
-                                "fuzzy":{'prefixLength':1,},
+                                "fuzzy":{'prefixLength':1},
                                 "score":{
                                 "boost":{
                                     "value":2
@@ -113,7 +113,7 @@ async def fts_search(request: schemas.RRFQuerySchema):
     ]
     
     results =await Movies.aggregate(pipeline2).to_list(100)
-    print(results)
+    # print(results)
     for i in range(len(results)):
         results[i]["_id"] = str(results[i]["_id"])
         results[i]["title"] = str(results[i]["title"])
@@ -171,12 +171,14 @@ async def rrf(request: schemas.RRFQuerySchema):
     value = r.get(key)
     if value:
         return json.loads(value)
+    query2=' '+query
+    print(query2)
     resultVs=[]
     resultFts=[]
     resultVs = await sem_search(schemas.RRFQuerySchema(query=query))
     # print(resultVs)
     if len(query) < 50:
-        resultFts=await fts_search(schemas.RRFQuerySchema(query=query))
+        resultFts=await fts_search(schemas.RRFQuerySchema(query=query2))
     # print(resultFts)
     response = []
     
