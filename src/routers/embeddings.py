@@ -22,7 +22,7 @@ async def init_embeddings():
         movies = await Movies.find().to_list(25000)
         # return {"message": "Embeddings initialized"}
         for movie in movies:
-            print(f"Generating embedding for {movie['title']}")
+            # print(f"Generating embedding for {movie['title']}")
             if "plot" not in movie:
                 continue
             embedding = get_embedding_ada([movie['plot']])
@@ -33,7 +33,8 @@ async def init_embeddings():
             if embedding is None:
                 print(f"Failed to embed {movie['title']}")
             else :
-                print(f"Success")
+                # print(f"Success")
+                pass
         
         return {"message": "Embeddings initialized"}
     except Exception as e:
@@ -113,7 +114,7 @@ async def fts_search(request: schemas.RRFQuerySchema):
     ]
     
     results =await Movies.aggregate(pipeline2).to_list(100)
-    print(results)
+    # print(results)
     for i in range(len(results)):
         results[i]["_id"] = str(results[i]["_id"])
         results[i]["title"] = str(results[i]["title"])
@@ -169,7 +170,9 @@ async def rrf(request: schemas.RRFQuerySchema):
     query = query.query
     key=query+'@rrf'
     value = r.get(key)
+    print(f"Testing for Cache Key: {key}")
     if value:
+        print("Cache Hit")
         return json.loads(value)
     resultVs=[]
     resultFts=[]
@@ -197,6 +200,7 @@ async def rrf(request: schemas.RRFQuerySchema):
             
     response.sort(reverse=True,key=lambda elem: "%s %s" % (elem['score'], elem['imdb']['rating']))  
     r.set(key,json.dumps(response)) 
+    print(f"Cache Miss: Generated Key {key}")
     return response
 
 
