@@ -11,10 +11,31 @@ from src.db import Movies, Embedded_movies,db
 from src.cache_system import r
 import operator
 
-vs_penalty=1
+vs_penalty=3
 fts_penalty=1
-vs_const=1
-fts_const=1
+vs_const=0
+fts_const=0
+stop_words = [
+    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
+    "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being",
+    "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't",
+    "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during",
+    "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't",
+    "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here",
+    "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i",
+    "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's",
+    "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself",
+    "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought",
+    "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she",
+    "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than",
+    "that", "that's", "the", "their", "theirs", "them", "themselves", "then",
+    "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've",
+    "this", "those", "through", "to", "too", "under", "until", "up", "very", "was",
+    "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what",
+    "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's",
+    "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd",
+    "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"
+]
 
 @router.get("/init_embeddings")
 async def init_embeddings():
@@ -174,12 +195,22 @@ async def rrf(request: schemas.RRFQuerySchema):
     if value:
         print("Cache Hit")
         return json.loads(value)
+    
+    words=query.split(' ')
+    wordsfts=[]
+    queryfts=""
+    for word in words:
+        if word not in stop_words:
+            queryfts += word
+            queryfts += ' '
+            wordsfts.append(word)
     resultVs=[]
     resultFts=[]
-    resultVs = await sem_search(schemas.RRFQuerySchema(query=query))
+    if len(words) > 3:
+        resultVs = await sem_search(schemas.RRFQuerySchema(query=query))
     # print(resultVs)
-    if len(query) < 50:
-        resultFts=await fts_search(schemas.RRFQuerySchema(query=query))
+    if len(wordsfts) < 6:
+        resultFts=await fts_search(schemas.RRFQuerySchema(query=queryfts))
     # print(resultFts)
     response = []
     
