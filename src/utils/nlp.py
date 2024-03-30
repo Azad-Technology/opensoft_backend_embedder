@@ -71,19 +71,21 @@ async def nlp_processing(passed_query):
     except:
         return ""
     try:
-        query = query.replace(f"db.movies.find(", "")
-        query.strip()
+        while query[0] != '{':
+            query=query[1:]
         for i in range(len(query)-1,-1,-1):
             if query[i] == '}':
                 break
             else:
                 query=query[:-1]
-        query=query[:-1]
-        for i in range(len(query)-1,-1,-1):
-            if query[i] == '}':
-                break
-            else:
-                query=query[:-1]
+        
+        if '_id' in query:
+            query=query[:-1]
+            for i in range(len(query)-1,-1,-1):
+                if query[i] == '}':
+                    break
+                else:
+                    query=query[:-1]
     except:
         return ""
     print(query)
