@@ -17,27 +17,6 @@ vs_penalty=3
 fts_penalty=1
 vs_const=0
 fts_const=0
-stop_words = [
-    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
-    "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being",
-    "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't",
-    "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during",
-    "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't",
-    "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here",
-    "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i",
-    "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's",
-    "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself",
-    "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought",
-    "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she",
-    "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than",
-    "that", "that's", "the", "their", "theirs", "them", "themselves", "then",
-    "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've",
-    "this", "those", "through", "to", "too", "under", "until", "up", "very", "was",
-    "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what",
-    "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's",
-    "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd",
-    "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"
-]
 
 @router.get("/init_embeddings")
 async def init_embeddings():
@@ -70,124 +49,130 @@ def get_score(element):
 
 @router.post("/fts_search")
 async def fts_search(request: schemas.RRFQuerySchema):
-    query = request.query
-    key=query+'@ftssearch'
-    value = r.get(key)
-    if value:
-        return json.loads(value)
-    
-    pipeline2=[
-        {
-        '$search': {
-            'index': "movie_index",
-            "compound": {
-                "should": [
-                    {
-                    "text": {
-                        "query": query, 
-                        "path": 'title',
-                        "fuzzy":{'maxExpansions':500},
-                        "score":{
-                        "boost":{
-                            "value":5
+    try:
+        query = request.query
+        key=query+'@ftssearch'
+        value = r.get(key)
+        if value:
+            return json.loads(value)
+        
+        pipeline2=[
+            {
+            '$search': {
+                'index': "movie_index",
+                "compound": {
+                    "should": [
+                        {
+                        "text": {
+                            "query": query, 
+                            "path": 'title',
+                            "fuzzy":{'maxExpansions':500},
+                            "score":{
+                            "boost":{
+                                "value":5
+                            }
+                            }
                         }
-                        }
+                        }, {
+                                "text": {
+                                    "query": query, 
+                                    "path": 'genres',
+                                    "fuzzy":{},
+                                    "score":{
+                                    "boost":{
+                                        "value":3
+                                    }
+                                    }
+                                }
+                            }, {
+                                "text": {
+                                    "query": query, 
+                                    "path": 'cast',
+                                    "fuzzy":{},
+                                    "score":{
+                                    "boost":{
+                                        "value":2
+                                    }
+                                    }
+                                }
+                            }, {
+                                "text": {
+                                    "query": query, 
+                                    "path": 'directors',
+                                    "score":{
+                                    "boost":{
+                                        "value":1
+                                    }
+                                    }
+                                }
+                            }
+                    ], 
+                    "minimumShouldMatch": 1
+                },
+                "highlight":{
+                    "path":{
+                        "wildcard":"*"
                     }
-                    }, {
-                            "text": {
-                                "query": query, 
-                                "path": 'genres',
-                                "fuzzy":{},
-                                "score":{
-                                "boost":{
-                                    "value":3
-                                }
-                                }
-                            }
-                        }, {
-                            "text": {
-                                "query": query, 
-                                "path": 'cast',
-                                "fuzzy":{},
-                                "score":{
-                                "boost":{
-                                    "value":2
-                                }
-                                }
-                            }
-                        }, {
-                            "text": {
-                                "query": query, 
-                                "path": 'directors',
-                                "score":{
-                                "boost":{
-                                    "value":1
-                                }
-                                }
-                            }
-                        }
-                ], 
-                "minimumShouldMatch": 1
-            },
-            "highlight":{
-                "path":{
-                    "wildcard":"*"
                 }
-            }
-        }},
-        { '$limit': 100 },
-        { '$project': { '_id': 1, 'title': 1, 'imdb': 1, 'plot': 1, 'poster_path': 1, 'runtime': 1, 'year': 1,"highlights":{"$meta":"searchHighlights"},"score":{"$meta":"searchScore"} }}
-    ]
-    
-    results =await Movies.aggregate(pipeline2).to_list(100)
-    # print(results)
-    for i in range(len(results)):
-        results[i]["_id"] = str(results[i]["_id"])
-        results[i]["title"] = str(results[i]["title"])
-        results[i]['score']=1/(i+fts_const+fts_penalty)
-    r.set(key,json.dumps(results))
-    return results
+            }},
+            { '$limit': 100 },
+            { '$project': { '_id': 1, 'title': 1, 'imdb': 1, 'plot': 1, 'poster_path': 1, 'runtime': 1, 'year': 1,"highlights":{"$meta":"searchHighlights"},"score":{"$meta":"searchScore"} }}
+        ]
+        
+        results =await Movies.aggregate(pipeline2).to_list(100)
+        # print(results)
+        for i in range(len(results)):
+            results[i]["_id"] = str(results[i]["_id"])
+            results[i]["title"] = str(results[i]["title"])
+            results[i]['score']=1/(i+fts_const+fts_penalty)
+        r.set(key,json.dumps(results))
+        return results
+    except:
+        return []
 
 @router.post("/sem_search")
 async def sem_search(request: schemas.RRFQuerySchema):
-    query = request.query
-    query_vector = get_embedding_ada([query])  
-    query_vector = query_vector[0].tolist()[0]
-    query_vector_bson = [float(value) for value in query_vector]
-    # print(query,query_vector_bson)
-    key=query+'@sem'
-    value = r.get(key)
-    # print(value)
-    if value:
-        return json.loads(value)
-    pipeline = [
-    {
-        '$vectorSearch': {
-        'index': 'vector_index', 
-            'path': 'embedding',  
-            'queryVector': query_vector_bson,
-            'numCandidates': 200, 
-        'limit': 100
+    try:
+        query = request.query
+        query_vector = get_embedding_ada([query])  
+        query_vector = query_vector[0].tolist()[0]
+        query_vector_bson = [float(value) for value in query_vector]
+        # print(query,query_vector_bson)
+        key=query+'@sem'
+        value = r.get(key)
+        # print(value)
+        if value:
+            return json.loads(value)
+        pipeline = [
+        {
+            '$vectorSearch': {
+            'index': 'vector_index', 
+                'path': 'embedding',  
+                'queryVector': query_vector_bson,
+                'numCandidates': 200, 
+            'limit': 100
+            }
+        },
+        {
+            '$project': {
+                '_id': 1,
+                'title':1,
+                # 'vs_score':1,
+                'imdb': 1, 'plot': 1, 'poster_path': 1, 'runtime': 1, 'year': 1,
+                'score':{"$meta":"vectorSearchScore"}
+            }
         }
-    },
-    {
-        '$project': {
-            '_id': 1,
-            'title':1,
-            # 'vs_score':1,
-            'imdb': 1, 'plot': 1, 'poster_path': 1, 'runtime': 1, 'year': 1,
-            'score':{"$meta":"vectorSearchScore"}
-        }
-    }
-    ]
+        ]
 
-    results = await Embedded_movies.aggregate(pipeline).to_list(100)
-    for i in range(len(results)):
-        results[i]["_id"] = str(results[i]["_id"])
-        results[i]["title"] = str(results[i]["title"])
-        results[i]['score']=1/(i+vs_const+vs_penalty)
-    r.set(key,json.dumps(results))
-    return results
+        results = await Embedded_movies.aggregate(pipeline).to_list(100)
+        for i in range(len(results)):
+            results[i]["_id"] = str(results[i]["_id"])
+            results[i]["title"] = str(results[i]["title"])
+            results[i]['score']=1/(i+vs_const+vs_penalty)
+        r.set(key,json.dumps(results))
+        return results
+    except:
+        return []
 
 def find_cast(obj):
     if isinstance(obj, dict):
@@ -236,131 +221,130 @@ async def nlp_search(request: schemas.RRFQuerySchema):
 
 @router.post("/rrf")
 async def rrf(request: schemas.RRFQuerySchema):
-    query = request
-    query = query.query
-    key=query+'@rrf'
-    value = r.get(key)
-    print(f"Testing for Cache Key: {key}")
-    if value:
-        print("Cache Hit")
-        return json.loads(value)
-    
-    words=query.split(' ')
-    wordsfts=[]
-    queryfts=""
-    for word in words:
-        if word not in stop_words:
-            queryfts += word
-            queryfts += ' '
-            wordsfts.append(word)
-    resultVs=[]
-    resultFts=[]
-    if len(words) > 3:
-        resultVs = await sem_search(schemas.RRFQuerySchema(query=query))
-    # print(resultVs)
-    if len(wordsfts) < 6:
-        resultFts=await fts_search(schemas.RRFQuerySchema(query=queryfts))
-    # print(resultFts)
-    response = []
-    
-    for result in resultFts:
-        response.append(result)
+    try:
+        query = request
+        query = query.query
+        key=query+'@rrf'
+        value = r.get(key)
+        print(f"Testing for Cache Key: {key}")
+        if value:
+            print("Cache Hit")
+            return json.loads(value)
         
-    for result in resultVs:
-        _id=result['_id']
-        for checker in response:
-            if checker['_id'] == _id:
-                checker['score'] += result['score']
-                result['_id']=""
-        if result['_id'] != "":
-            db_movie=await Movies.find_one({'_id':ObjectId(_id)})
-            if db_movie and ('poster_path' in db_movie) and db_movie['poster_path']:
-                result['poster_path']=db_movie['poster_path']
-            response.append(result)    
+        words=query.split(' ')
+        resultVs=[]
+        resultFts=[]
+        if len(words) > 3:
+            resultVs = await sem_search(schemas.RRFQuerySchema(query=query))
+        # print(resultVs)
+        if len(words) < 6:
+            resultFts=await fts_search(schemas.RRFQuerySchema(query=query))
+        # print(resultFts)
+        response = []
+        
+        for result in resultFts:
+            response.append(result)
             
-    response.sort(reverse=True,key=lambda elem: "%s %s" % (elem['score'], elem['imdb']['rating']))  
-    response=response[0:50]
-    r.set(key,json.dumps(response)) 
-    print(f"Cache Miss: Generated Key {key}")
-    return response[0:50]
+        for result in resultVs:
+            _id=result['_id']
+            for checker in response:
+                if checker['_id'] == _id:
+                    checker['score'] += result['score']
+                    result['_id']=""
+            if result['_id'] != "":
+                db_movie=await Movies.find_one({'_id':ObjectId(_id)})
+                if db_movie and ('poster_path' in db_movie) and db_movie['poster_path']:
+                    result['poster_path']=db_movie['poster_path']
+                response.append(result)    
+                
+        response.sort(reverse=True,key=lambda elem: "%s %s" % (elem['score'], elem['imdb']['rating']))  
+        response=response[0:50]
+        r.set(key,json.dumps(response)) 
+        print(f"Cache Miss: Generated Key {key}")
+        return response[0:50]
+    except:
+        return []
 
 
 @router.post('/fts_search_filter')
 async def fts_search_filter(request: schemas.FilterSchema):
-    query=request.query
-    genres=request.genre
-    year=request.year
-    language=request.language
-    
-    key=query+'_'+(str(genres) or 'genre_None')+'_'+(str(year) or 'year_None')+'_'+(language or 'language_None')+'@rrf'
-    value = r.get(key)
-    if value:
-        return json.loads(value)
-    pipeline2=[
-        {
-        '$search': {
-            'index': "movie_index",
-            "compound": {
-                "must":[],
-                "should": [
-                    {
-                    "text": {
-                        "query": query, 
-                        "path": 'title',
-                        "fuzzy":{'prefixLength':1,'maxExpansions':70},
-                        "score":{
-                        "boost":{
-                            "value":5
-                        }
-                        }
-                    }
-                    },{
-                            "text": {
-                                "query": query, 
-                                "path": 'cast',
-                                "fuzzy":{'prefixLength':1,},
-                                "score":{
-                                "boost":{
-                                    "value":3
-                                }
-                                }
-                            }
-                        }, {
-                            "text": {
-                                "query": query, 
-                                "path": 'directors',
-                                "score":{
-                                "boost":{
-                                    "value":2
-                                }
-                                }
-                            }
-                        }
-                ], 
-                "minimumShouldMatch": 1
-            },
-            "highlight":{
-                "path":{
-                    "wildcard":"*"
-                }
-            }
-        }},
-        { '$limit': 100 },
-        { '$project': { '_id': 1, 'title': 1, 'imdb': 1, 'plot': 1, 'poster_path': 1, 'runtime': 1, 'year': 1,"highlights":{"$meta":"searchHighlights"},"score":{"$meta":"searchScore"} }},
-        { '$sort': { 'score': -1,'imdb': -1} }
-    ]
-    for genre in genres:
-        if genre:
-            pipeline2[0]['$search']['compound']['must'].append({"text": {"query": genre,"path": "genres"}})
-    if year:
-        pipeline2[0]['$search']['compound']['must'].append({'range': {'path': 'year', 'gte': year, 'lte': year}})
-    if language:
-        pipeline2[0]['$search']['compound']['must'].append({"text": {"query": language,"path": "languages"}})
+    try:
+        query=request.query
+        genres=request.genre
+        year=request.year
+        language=request.language
         
-    results =await Movies.aggregate(pipeline2).to_list(100)
-    # print(results)
-    for i in range(len(results)):
-        results[i]["_id"] = str(results[i]["_id"])
-        results[i]["title"] = str(results[i]["title"])
-    r.set(key,json.dumps(results))
-    return results
+        key=query+'_'+(str(genres) or 'genre_None')+'_'+(str(year) or 'year_None')+'_'+(language or 'language_None')+'@rrf'
+        value = r.get(key)
+        if value:
+            return json.loads(value)
+        pipeline2=[
+            {
+            '$search': {
+                'index': "movie_index",
+                "compound": {
+                    "must":[],
+                    "should": [
+                        {
+                        "text": {
+                            "query": query, 
+                            "path": 'title',
+                            "fuzzy":{'prefixLength':1,'maxExpansions':70},
+                            "score":{
+                            "boost":{
+                                "value":5
+                            }
+                            }
+                        }
+                        },{
+                                "text": {
+                                    "query": query, 
+                                    "path": 'cast',
+                                    "fuzzy":{'prefixLength':1,},
+                                    "score":{
+                                    "boost":{
+                                        "value":3
+                                    }
+                                    }
+                                }
+                            }, {
+                                "text": {
+                                    "query": query, 
+                                    "path": 'directors',
+                                    "score":{
+                                    "boost":{
+                                        "value":2
+                                    }
+                                    }
+                                }
+                            }
+                    ], 
+                    "minimumShouldMatch": 1
+                },
+                "highlight":{
+                    "path":{
+                        "wildcard":"*"
+                    }
+                }
+            }},
+            { '$limit': 100 },
+            { '$project': { '_id': 1, 'title': 1, 'imdb': 1, 'plot': 1, 'poster_path': 1, 'runtime': 1, 'year': 1,"highlights":{"$meta":"searchHighlights"},"score":{"$meta":"searchScore"} }},
+            { '$sort': { 'score': -1,'imdb': -1} }
+        ]
+        for genre in genres:
+            if genre:
+                pipeline2[0]['$search']['compound']['must'].append({"text": {"query": genre,"path": "genres"}})
+        if year:
+            pipeline2[0]['$search']['compound']['must'].append({'range': {'path': 'year', 'gte': year, 'lte': year}})
+        if language:
+            pipeline2[0]['$search']['compound']['must'].append({"text": {"query": language,"path": "languages"}})
+            
+        results =await Movies.aggregate(pipeline2).to_list(100)
+        # print(results)
+        for i in range(len(results)):
+            results[i]["_id"] = str(results[i]["_id"])
+            results[i]["title"] = str(results[i]["title"])
+        r.set(key,json.dumps(results))
+        return results
+    except:
+        return []
