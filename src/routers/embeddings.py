@@ -201,6 +201,10 @@ def find_genre(obj):
 async def nlp_search(request: schemas.RRFQuerySchema):
     try:
         query=request.query
+        key=query+'@nlp'
+        value = r.get(key)
+        if value:
+            return json.loads(value)
         result=await nlp.nlp_processing(query)
         if result == "":
             return []
@@ -214,7 +218,7 @@ async def nlp_search(request: schemas.RRFQuerySchema):
         for i in range(len(results)):
             results[i]["_id"] = str(results[i]["_id"])
         
-        # r.set(key,json.dumps(results))
+        r.set(key,json.dumps(results[0:5]))
         return results[0:5]
     except:
         return []
