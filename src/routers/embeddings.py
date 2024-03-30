@@ -10,6 +10,8 @@ from src.utils.ada_embedder import embed_movie as embed_movie_ada, get_embedding
 from src.db import Movies, Embedded_movies,db
 from src.cache_system import r
 import operator
+from src.utils import nlp
+import re
 
 vs_penalty=3
 fts_penalty=1
@@ -61,7 +63,10 @@ async def init_embeddings():
     except Exception as e:
         raise HTTPException(status_code = 500, detail=str(e))
 def get_score(element):
-    return element['score'],element['imdb']['rating']
+    if 'imdb' in element and element['imdb']['rating'] != '':
+        return float(element['imdb']['rating'])
+    else :
+        return 2.0
 
 @router.post("/fts_search")
 async def fts_search(request: schemas.RRFQuerySchema):
@@ -81,7 +86,7 @@ async def fts_search(request: schemas.RRFQuerySchema):
                     "text": {
                         "query": query, 
                         "path": 'title',
-                        "fuzzy":{'prefixLength':3,'maxExpansions':500},
+                        "fuzzy":{'maxExpansions':500},
                         "score":{
                         "boost":{
                             "value":5
@@ -92,7 +97,7 @@ async def fts_search(request: schemas.RRFQuerySchema):
                             "text": {
                                 "query": query, 
                                 "path": 'genres',
-                                "fuzzy":{'prefixLength':1,},
+                                "fuzzy":{},
                                 "score":{
                                 "boost":{
                                     "value":3
@@ -103,7 +108,7 @@ async def fts_search(request: schemas.RRFQuerySchema):
                             "text": {
                                 "query": query, 
                                 "path": 'cast',
-                                "fuzzy":{'prefixLength':1},
+                                "fuzzy":{},
                                 "score":{
                                 "boost":{
                                     "value":2
@@ -184,6 +189,50 @@ async def sem_search(request: schemas.RRFQuerySchema):
     r.set(key,json.dumps(results))
     return results
 
+def find_cast(obj):
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if key == 'cast':
+                obj[key]=value.title()
+                return obj[key]
+            else:
+                find_cast(value)
+    elif isinstance(obj, list):
+        for item in obj:
+            find_cast(item)
+
+def find_genre(obj):
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if key == 'genres':
+                obj[key]=value.title()
+                return obj[key]
+            else:
+                find_genre(value)
+    elif isinstance(obj, list):
+        for item in obj:
+            find_genre(item)
+@router.post("/nlp")
+async def nlp_search(request: schemas.RRFQuerySchema):
+    try:
+        query=request.query
+        result=await nlp.nlp_processing(query)
+        if result == "":
+            return []
+        resultJson=json.loads(result)
+        find_cast(resultJson)
+        find_genre(resultJson)
+        print(resultJson)
+        results=await Movies.find(resultJson,{ '_id': 1, 'title': 1, 'imdb': 1, 'plot': 1, 'poster_path': 1, 'runtime': 1, 'year': 1 }).to_list(length=None)
+        # print(results)
+        results.sort(reverse=True,key=get_score)
+        for i in range(len(results)):
+            results[i]["_id"] = str(results[i]["_id"])
+        
+        # r.set(key,json.dumps(results))
+        return results[0:5]
+    except:
+        return []
 
 @router.post("/rrf")
 async def rrf(request: schemas.RRFQuerySchema):

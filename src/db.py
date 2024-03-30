@@ -6,7 +6,9 @@ import json
 client = AsyncIOMotorClient(config['DATABASE_URL'])
 db = client[config['MONGO_INITDB_DATABASE']]
 print('Connected to MongoDB')
-
+import gensim.downloader as api
+word2vec_model = api.load("glove-wiki-gigaword-100")
+print('Loaded')
 
 db = client.get_database(config['MONGO_INITDB_DATABASE'])
 
